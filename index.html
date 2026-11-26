@@ -646,12 +646,16 @@
         map[14][x] = 1;
       }
 
-      // First question block & bricks
-      map[9][10] = 3; // ?
-      map[9][12] = 2; // brick
-      map[9][13] = 3; // ? (super mushroom)
-      map[9][14] = 2; // brick
-      map[5][13] = 3; // high ?
+      // First question blocks & 3inger Graffiti Bricks
+      map[9][9] = 3;   // ? (coin)
+      map[9][10] = 3;  // ? (coin)
+      map[9][11] = 2;  // brick - '3'
+      map[9][12] = 2;  // brick - 'in'
+      map[9][13] = 2;  // brick - 'g'
+      map[9][14] = 2;  // brick - 'er'
+      map[9][15] = 2;  // brick
+      map[9][16] = 3;  // ? (super mushroom)
+      map[5][13] = 3;  // high ?
 
       // Neon Pipe 1
       map[12][18] = 4; map[12][19] = 5;
@@ -665,8 +669,15 @@
       map[12][29] = 8; map[11][29] = 8;
       map[12][30] = 8; map[11][30] = 8; map[10][30] = 8;
 
-      // Question blocks & Bricks cluster
-      map[9][34] = 2; map[9][35] = 3; map[9][36] = 2;
+      // Podolskiy Graffiti Bricks & Blocks cluster
+      map[9][32] = 3;  // ?
+      map[9][33] = 2;  // brick - 'Po'
+      map[9][34] = 2;  // brick - 'dol'
+      map[9][35] = 2;  // brick - 'sk'
+      map[9][36] = 2;  // brick - 'iy'
+      map[9][37] = 2;  // brick
+      map[9][38] = 2;  // brick
+      map[9][39] = 3;  // ?
       map[6][35] = 3;
 
       // High cyber platform
@@ -854,7 +865,7 @@
           map[ty][tx] = 8; // turn to solid spent block
           audio.playCoin();
           // Spawn coin or Mushroom
-          if ((tx === 13 && ty === 9) || (tx === 41 && ty === 4)) {
+          if ((tx === 16 && ty === 9) || (tx === 41 && ty === 4)) {
             items.push(new Mushroom(tx * TILE_SIZE + 4, (ty - 1) * TILE_SIZE));
           } else {
             coins++;
@@ -864,7 +875,8 @@
           }
         } else if (tile === 2) {
           // Brick
-          if (this.isSuper) {
+          const isGraffitiBrick = (ty === 9 && ((tx >= 11 && tx <= 15) || (tx >= 33 && tx <= 38)));
+          if (this.isSuper && !isGraffitiBrick) {
             map[ty][tx] = 0;
             audio.playStomp();
             score += 50;
@@ -874,6 +886,9 @@
             }
           } else {
             audio.playBlockBump();
+            if (isGraffitiBrick) {
+              for (let i = 0; i < 3; i++) particles.push(new Spark(tx * TILE_SIZE + 16, ty * TILE_SIZE + 16));
+            }
           }
         }
       }
@@ -1296,6 +1311,138 @@
              a.y + a.height > b.y;
     }
 
+    /* ==========================================================================
+       6. CYBERPUNK STATIC STREET GRAFFITI ON BRICKS
+       ========================================================================== */
+    const graffitiList = [
+      {
+        text: '3inger',
+        x: 432, // tiles 11..15 center (x = 352 to 512)
+        y: 9 * TILE_SIZE + 16, // y = 304 (vertically centered on row 9 bricks)
+        color: '#ff007f', // hot neon pink
+        glow: '#ff007f',
+        stroke: '#00f3ff', // neon cyan accent outline
+        angle: -0.05,
+        fontSize: 22,
+        underlineWidth: 95,
+        drips: [
+          { dx: -32, len: 10 },
+          { dx: -6, len: 16 },
+          { dx: 22, len: 11 }
+        ],
+        splatters: [
+          { dx: -45, dy: -9, r: 1.5 },
+          { dx: -36, dy: -14, r: 1 },
+          { dx: 38, dy: -12, r: 1.5 },
+          { dx: 46, dy: 6, r: 1.2 },
+          { dx: -12, dy: 14, r: 1.8 }
+        ]
+      },
+      {
+        text: 'Podolskiy',
+        x: 1152, // tiles 33..38 center (x = 1056 to 1248)
+        y: 9 * TILE_SIZE + 16, // y = 304 (vertically centered on row 9 bricks)
+        color: '#00f3ff', // electric neon cyan
+        glow: '#00f3ff',
+        stroke: '#ffe600', // neon yellow accent outline
+        angle: -0.04,
+        fontSize: 22,
+        underlineWidth: 135,
+        drips: [
+          { dx: -48, len: 12 },
+          { dx: -16, len: 18 },
+          { dx: 18, len: 14 },
+          { dx: 45, len: 10 }
+        ],
+        splatters: [
+          { dx: -64, dy: -8, r: 1.5 },
+          { dx: -52, dy: -13, r: 1.2 },
+          { dx: 54, dy: -11, r: 1.4 },
+          { dx: 65, dy: 7, r: 1.5 },
+          { dx: 12, dy: 15, r: 1.6 }
+        ]
+      }
+    ];
+
+    function drawGraffiti(ctx, camX) {
+      graffitiList.forEach(g => {
+        const screenX = g.x - camX;
+        // Don't render if offscreen
+        if (screenX < -200 || screenX > canvas.width + 200) return;
+
+        ctx.save();
+        ctx.translate(Math.floor(screenX), Math.floor(g.y));
+        ctx.rotate(g.angle);
+
+        // Spray Halo / Aerosol Mist backdrop
+        ctx.save();
+        const mistGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, g.underlineWidth * 0.65);
+        mistGrad.addColorStop(0, g.color === '#ff007f' ? 'rgba(255, 0, 127, 0.3)' : 'rgba(0, 243, 255, 0.3)');
+        mistGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = mistGrad;
+        ctx.fillRect(-g.underlineWidth * 0.7, -25, g.underlineWidth * 1.4, 50);
+        ctx.restore();
+
+        // Spray Splatter dots
+        ctx.fillStyle = g.color;
+        g.splatters.forEach(s => {
+          ctx.beginPath();
+          ctx.arc(s.dx, s.dy, s.r, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Main Graffiti Inscription
+        ctx.font = `bold ${g.fontSize}px "Rajdhani", "Press Start 2P", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Neon Glow
+        ctx.shadowColor = g.glow;
+        ctx.shadowBlur = 12;
+
+        // Dark background stroke for high contrast against brick mortar
+        ctx.strokeStyle = '#050510';
+        ctx.lineWidth = 4;
+        ctx.lineJoin = 'miter';
+        ctx.miterLimit = 2;
+        ctx.strokeText(g.text, 0, 0);
+
+        // Accent colored inline stroke
+        ctx.strokeStyle = g.stroke;
+        ctx.lineWidth = 1.8;
+        ctx.strokeText(g.text, 0, 0);
+
+        // Bright Neon Core Fill
+        ctx.fillStyle = g.color;
+        ctx.fillText(g.text, 0, 0);
+
+        // Reset shadow for crisp drips
+        ctx.shadowBlur = 6;
+
+        // Street Tag Underline
+        const ulY = 12;
+        ctx.strokeStyle = g.color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(-g.underlineWidth / 2, ulY);
+        ctx.lineTo(g.underlineWidth / 2, ulY + 1);
+        ctx.stroke();
+
+        // Paint Drips dripping down below the bricks
+        ctx.fillStyle = g.color;
+        g.drips.forEach(d => {
+          // Drip trail
+          ctx.fillRect(d.dx - 1, ulY, 2, d.len);
+          // Teardrop droplet at bottom
+          ctx.beginPath();
+          ctx.arc(d.dx, ulY + d.len, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.restore();
+      });
+    }
+
     function draw() {
       // Calculate Camera Offset
       let camX = player.x - 300;
@@ -1386,6 +1533,9 @@
           }
         }
       }
+
+      // Draw Static Cyberpunk Street Graffiti on Bricks
+      drawGraffiti(ctx, camX);
 
       // Draw Flagpole / Cyber Terminal Uplink Tower
       const flagX = 80 * TILE_SIZE + 14 - camX;
